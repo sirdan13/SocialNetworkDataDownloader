@@ -114,6 +114,7 @@ public class SocialNetworkDataDownloader {
 		}
 
 		try {
+			
 			chekRequestData(request);
 		} catch (ApplicationParameterException e) {
 			logger.error(e.getMessage(), e);
