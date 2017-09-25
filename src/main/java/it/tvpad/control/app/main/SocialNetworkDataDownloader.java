@@ -131,6 +131,8 @@ public class SocialNetworkDataDownloader {
 		BaseFilter filter = new BaseFilter();
 		filter.parseKeywordFilter(request.getKeywordFilter());
 		filter.parseLanguageFilter(request.getLanguageFilter());
+		
+		
 
 		// load list of sources
 		List<SourcesRequest> sourcesRequests = request.getSourcesRequests();

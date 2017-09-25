@@ -43,7 +43,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private Date stopDate;
 	private Date startDate;
 	private DatabaseService databaseService;
-	private int bufferSize = 1000;
+	private int bufferSize = 25;
 
 	public TwitterStreamingProducer() {
 		filterQuery = new FilterQuery();
@@ -76,9 +76,24 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			System.out.println("data null");
 		}
 		filterQuery.track(data);
-
+		String langs = "";
+		for(String s : filter.getTwitterApiLanguageFilter())
+			langs+=s;
+		if(langs.contains("none")){
+		//	filterQuery.language(filter.getTwitterApiLanguageFilter());
+			System.out.println(filter.getTwitterApiLanguageFilter()[0]);
+		}
+		else
+			filterQuery.language(filter.getTwitterApiLanguageFilter());
 		// set language filter
-		filterQuery.language(filter.getTwitterApiLanguageFilter());
+	//	filterQuery.language(filter.getTwitterApiLanguageFilter());
+	/*	if(filter.getTwitterApiLanguageFilter()[0]!="none")
+		{
+			filterQuery.language(filter.getTwitterApiLanguageFilter());
+			System.out.println(filter.getTwitterApiLanguageFilter()[0]);
+		}*/
+		
+		
 	}
 
 	public void setSource(Source source) {
@@ -95,6 +110,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			List<Tweet> buffer = new ArrayList<Tweet>(bufferSize); 
 
 			public void onStatus(Status status) {
+				//TODO CHECK RETWEET
 				if (!status.isRetweet()) {
 					Tweet tweet = extractStatusInfo(status);
 					// logger.warn("Got a tweet: " + tweet.getText());
@@ -198,7 +214,10 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			tweet.setLatitude(geolocation.getLatitude());
 		}
 		tweet.setCreationDate(new Timestamp(status.getCreatedAt().getTime()));
-		tweet.setFavoritesCount(status.getFavoriteCount());
+		if(status.isRetweet())
+			tweet.setFavoritesCount(status.getRetweetedStatus().getFavoriteCount());
+		else
+			tweet.setFavoritesCount(status.getFavoriteCount());
 		// extract user information
 		tweet.setUserId(new BigDecimal(status.getUser().getId()));
 		tweet.setUserLocation(status.getUser().getLocation());
