@@ -111,11 +111,18 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 
 			public void onStatus(Status status) {
 				//TODO CHECK RETWEET
-				if (!status.isRetweet()) {
+			//	if (!status.isRetweet()) {
 					Tweet tweet = extractStatusInfo(status);
+					Tweet retweeted = null;
+					if(status.isRetweet())
+						retweeted = extractStatusInfo(status.getRetweetedStatus());
 					// logger.warn("Got a tweet: " + tweet.getText());
 					if (filter.filterTweet(tweet.getText())) {
 						buffer.add(tweet);
+						if(retweeted!=null){
+							tweetCounter++;
+							buffer.add(retweeted);
+						}	
 						tweetCounter++;
 						if (tweetCounter % 1000 == 0) {
 							logger.error("Twitter Streaming: Received " + tweetCounter + " tweet");
@@ -132,7 +139,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 							}
 						}
 					}
-				}
+		//		}
 			}
 
 			public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
@@ -199,6 +206,8 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 
 	private Tweet extractStatusInfo(Status status) {
 		// extract tweet information
+		if(status.isRetweet())
+			status = status.getRetweetedStatus();
 		Tweet tweet = new Tweet();
 		tweet.setTweetId(new BigDecimal(status.getId()));
 		tweet.setLanguage(status.getLang());
@@ -214,10 +223,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			tweet.setLatitude(geolocation.getLatitude());
 		}
 		tweet.setCreationDate(new Timestamp(status.getCreatedAt().getTime()));
-		if(status.isRetweet())
-			tweet.setFavoritesCount(status.getRetweetedStatus().getFavoriteCount());
-		else
-			tweet.setFavoritesCount(status.getFavoriteCount());
+		tweet.setFavoritesCount(status.getFavoriteCount());
 		// extract user information
 		tweet.setUserId(new BigDecimal(status.getUser().getId()));
 		tweet.setUserLocation(status.getUser().getLocation());
