@@ -61,6 +61,9 @@ public class Tweet extends AbstractData implements Serializable {
 
 	@Column(name="USER_LOCATION")
 	private String userLocation;
+	
+	@Column(name="RETWEET_COUNT")
+	private int retweetCount;
 
 	//bi-directional many-to-one association to Hashtag
 	@OneToMany(mappedBy="tweet", cascade=CascadeType.PERSIST)
@@ -83,6 +86,7 @@ public class Tweet extends AbstractData implements Serializable {
 	//bi-directional many-to-one association to Url
 	@OneToMany(mappedBy="tweet", cascade=CascadeType.PERSIST)
 	private List<Url> urls;
+
 
 	public Tweet() {
 	}
@@ -109,6 +113,14 @@ public class Tweet extends AbstractData implements Serializable {
 
 	public void setFavoritesCount(int favoritesCount) {
 		this.favoritesCount = favoritesCount;
+	}
+	
+	public void setRetweetCount(int retweetCount){
+		this.retweetCount = retweetCount;
+	}
+	
+	public int getRetweetCount(){
+		return this.retweetCount;
 	}
 
 	public String getLanguage() {

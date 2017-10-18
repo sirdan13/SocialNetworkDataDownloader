@@ -17,6 +17,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +44,8 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private Date stopDate;
 	private Date startDate;
 	private DatabaseService databaseService;
+	//private List<String[]> sampleRetweet;
+	private HashMap<Long, Integer> sampleRetweet;
 	private int bufferSize = 25;
 
 	public TwitterStreamingProducer() {
@@ -103,7 +106,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	@Override
 	public void run() {
 		TwitterStream twitterStream = new TwitterStreamFactory().getInstance();
-		
+		sampleRetweet = new HashMap<Long, Integer>();
 		//ProducerMonitor prodMon = ProducerMonitor.getInstance();
 		//prodMon.setStreamingAttivo(true);
 		StatusListener listener = new StatusListener() {
@@ -114,8 +117,24 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			//	if (!status.isRetweet()) {
 					Tweet tweet = extractStatusInfo(status);
 					Tweet retweeted = null;
-					if(status.isRetweet())
-						retweeted = extractStatusInfo(status.getRetweetedStatus());
+					if(status.isRetweet()){
+						if(status.getRetweetedStatus().getRetweetCount()>=1000){
+							
+							if(sampleRetweet.containsKey(status.getRetweetedStatus().getId())){
+								int check = sampleRetweet.get(status.getRetweetedStatus().getId());
+								if(check<4)
+									sampleRetweet.replace(status.getRetweetedStatus().getId(), check++);
+								else
+									retweeted = extractStatusInfo(status.getRetweetedStatus());
+								
+							}
+							else
+								sampleRetweet.put(status.getRetweetedStatus().getId(), 0);
+								
+							}
+						}
+								
+						
 					// logger.warn("Got a tweet: " + tweet.getText());
 					if (filter.filterTweet(tweet.getText())) {
 						buffer.add(tweet);
@@ -224,6 +243,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		}
 		tweet.setCreationDate(new Timestamp(status.getCreatedAt().getTime()));
 		tweet.setFavoritesCount(status.getFavoriteCount());
+		tweet.setRetweetCount(status.getRetweetCount());
 		// extract user information
 		tweet.setUserId(new BigDecimal(status.getUser().getId()));
 		tweet.setUserLocation(status.getUser().getLocation());
