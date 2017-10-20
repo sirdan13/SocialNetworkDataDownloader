@@ -12,7 +12,14 @@ import it.tvpad.model.data.tweet.Url;
 import it.tvpad.model.request.Request;
 import it.tvpad.model.request.Source;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -22,6 +29,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -50,6 +58,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	//private List<String[]> sampleRetweet;
 	private HashMap<Long, Integer> sampleRetweet;
 	private int bufferSize = 25;
+	private String eventStartTime;
 
 	public TwitterStreamingProducer() {
 		filterQuery = new FilterQuery();
@@ -82,6 +91,40 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			System.out.println("data null");
 		}
 		filterQuery.track(data);
+		Properties config = new Properties();
+		FileInputStream in;
+		try {
+			in = new FileInputStream("config.properties");
+			config.load(in);
+			in.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		String connectionurl = config.getProperty("DBConn");
+		try {
+			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Connection conn;
+		String eventStart = "";
+		try {
+			conn = DriverManager.getConnection(connectionurl);
+			Statement stat = conn.createStatement();
+			String query = "SELECT e.StartDate FROM REQUEST AS r JOIN Event as e ON (r.IDEvent=e.ID) WHERE r.ID="+request.getId();
+			ResultSet rs = stat.executeQuery(query);
+			eventStart = "";
+			while(rs.next())
+				eventStart = rs.getString(1);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		eventStartTime = eventStart;
+		System.out.println("Event start date: "+eventStartTime);
+		
 		String langs = "";
 		for(String s : filter.getTwitterApiLanguageFilter())
 			langs+=s;
@@ -106,7 +149,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		this.source = source;
 	}
 	
-	public static Date convertDate(Date date){
+	public static Date convertDate(String date){
 		DateFormat dateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
 	//	DateFormat dateFormat = new SimpleDateFormat("yyyymmddHHmmss");
 	//	return Long.parseLong(dateFormat.format(date));
@@ -128,16 +171,13 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		//prodMon.setStreamingAttivo(true);
 		StatusListener listener = new StatusListener() {
 			List<Tweet> buffer = new ArrayList<Tweet>(bufferSize); 
-			
-			Date startDateConverted = convertDate(startDate);
-
 			public void onStatus(Status status) {
-				//TODO CHECK RETWEET
-			//	if (!status.isRetweet()) {
 					Tweet tweet = null;
 					//RETWEET
 					if(status.isRetweet()){
-						if(startDateConverted.before(status.getRetweetedStatus().getCreatedAt())){
+						Timestamp createdAt = new Timestamp(status.getRetweetedStatus().getCreatedAt().getTime());
+					//	if(startDateConverted.before(status.getRetweetedStatus().getCreatedAt())){
+						if(eventStartTime.compareTo(createdAt.toString())<0){
 							//MORE THAN 1000 RETWEET
 							if(status.getRetweetedStatus().getRetweetCount()>=1000){
 							
