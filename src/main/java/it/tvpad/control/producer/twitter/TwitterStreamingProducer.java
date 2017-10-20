@@ -14,9 +14,13 @@ import it.tvpad.model.request.Source;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -43,7 +47,9 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private Date stopDate;
 	private Date startDate;
 	private DatabaseService databaseService;
-	private int bufferSize = 1000;
+	//private List<String[]> sampleRetweet;
+	private HashMap<Long, Integer> sampleRetweet;
+	private int bufferSize = 25;
 
 	public TwitterStreamingProducer() {
 		filterQuery = new FilterQuery();
@@ -76,28 +82,90 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			System.out.println("data null");
 		}
 		filterQuery.track(data);
-
+		String langs = "";
+		for(String s : filter.getTwitterApiLanguageFilter())
+			langs+=s;
+		if(langs.contains("none")){
+		//	filterQuery.language(filter.getTwitterApiLanguageFilter());
+			System.out.println(filter.getTwitterApiLanguageFilter()[0]);
+		}
+		else
+			filterQuery.language(filter.getTwitterApiLanguageFilter());
 		// set language filter
-		filterQuery.language(filter.getTwitterApiLanguageFilter());
+	//	filterQuery.language(filter.getTwitterApiLanguageFilter());
+	/*	if(filter.getTwitterApiLanguageFilter()[0]!="none")
+		{
+			filterQuery.language(filter.getTwitterApiLanguageFilter());
+			System.out.println(filter.getTwitterApiLanguageFilter()[0]);
+		}*/
+		
+		
 	}
 
 	public void setSource(Source source) {
 		this.source = source;
 	}
+	
+	public static Date convertDate(Date date){
+		DateFormat dateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+	//	DateFormat dateFormat = new SimpleDateFormat("yyyymmddHHmmss");
+	//	return Long.parseLong(dateFormat.format(date));
+		try {
+			return dateFormat.parse(dateFormat.format(date));
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+		
+	}
 
 	@Override
 	public void run() {
 		TwitterStream twitterStream = new TwitterStreamFactory().getInstance();
-		
+		sampleRetweet = new HashMap<Long, Integer>();
 		//ProducerMonitor prodMon = ProducerMonitor.getInstance();
 		//prodMon.setStreamingAttivo(true);
 		StatusListener listener = new StatusListener() {
 			List<Tweet> buffer = new ArrayList<Tweet>(bufferSize); 
+			
+			Date startDateConverted = convertDate(startDate);
 
 			public void onStatus(Status status) {
-				if (!status.isRetweet()) {
-					Tweet tweet = extractStatusInfo(status);
+				//TODO CHECK RETWEET
+			//	if (!status.isRetweet()) {
+					Tweet tweet = null;
+					//RETWEET
+					if(status.isRetweet()){
+						if(startDateConverted.before(status.getRetweetedStatus().getCreatedAt())){
+							//MORE THAN 1000 RETWEET
+							if(status.getRetweetedStatus().getRetweetCount()>=1000){
+							
+								if(sampleRetweet.containsKey(status.getRetweetedStatus().getId())){
+									int check = sampleRetweet.get(status.getRetweetedStatus().getId());
+									if(check<4){
+										sampleRetweet.replace(status.getRetweetedStatus().getId(), check++);
+										tweet=null;
+									}
+									else
+										tweet = extractStatusInfo(status);
+								}
+								else
+									sampleRetweet.put(status.getRetweetedStatus().getId(), 0);
+								
+							}
+							//LESS THAN 1000 RETWEET
+							else
+								tweet = extractStatusInfo(status);
+						}
+						
+					}
+					//NOT RETWEET
+					else
+						tweet = extractStatusInfo(status);
+							
 					// logger.warn("Got a tweet: " + tweet.getText());
+				if(tweet!=null){
 					if (filter.filterTweet(tweet.getText())) {
 						buffer.add(tweet);
 						tweetCounter++;
@@ -117,6 +185,10 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 						}
 					}
 				}
+					
+		//		}
+				
+				
 			}
 
 			public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
@@ -183,6 +255,8 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 
 	private Tweet extractStatusInfo(Status status) {
 		// extract tweet information
+		if(status.isRetweet())
+			status = status.getRetweetedStatus();
 		Tweet tweet = new Tweet();
 		tweet.setTweetId(new BigDecimal(status.getId()));
 		tweet.setLanguage(status.getLang());
@@ -199,6 +273,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		}
 		tweet.setCreationDate(new Timestamp(status.getCreatedAt().getTime()));
 		tweet.setFavoritesCount(status.getFavoriteCount());
+		tweet.setRetweetCount(status.getRetweetCount());
 		// extract user information
 		tweet.setUserId(new BigDecimal(status.getUser().getId()));
 		tweet.setUserLocation(status.getUser().getLocation());
