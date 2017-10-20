@@ -14,6 +14,9 @@ import it.tvpad.model.request.Source;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -102,6 +105,20 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	public void setSource(Source source) {
 		this.source = source;
 	}
+	
+	public static Date convertDate(Date date){
+		DateFormat dateFormat = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy");
+	//	DateFormat dateFormat = new SimpleDateFormat("yyyymmddHHmmss");
+	//	return Long.parseLong(dateFormat.format(date));
+		try {
+			return dateFormat.parse(dateFormat.format(date));
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+		
+	}
 
 	@Override
 	public void run() {
@@ -111,37 +128,46 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		//prodMon.setStreamingAttivo(true);
 		StatusListener listener = new StatusListener() {
 			List<Tweet> buffer = new ArrayList<Tweet>(bufferSize); 
+			
+			Date startDateConverted = convertDate(startDate);
 
 			public void onStatus(Status status) {
 				//TODO CHECK RETWEET
 			//	if (!status.isRetweet()) {
-					Tweet tweet = extractStatusInfo(status);
-					Tweet retweeted = null;
+					Tweet tweet = null;
+					//RETWEET
 					if(status.isRetweet()){
-						if(status.getRetweetedStatus().getRetweetCount()>=1000){
+						if(startDateConverted.before(status.getRetweetedStatus().getCreatedAt())){
+							//MORE THAN 1000 RETWEET
+							if(status.getRetweetedStatus().getRetweetCount()>=1000){
 							
-							if(sampleRetweet.containsKey(status.getRetweetedStatus().getId())){
-								int check = sampleRetweet.get(status.getRetweetedStatus().getId());
-								if(check<4)
-									sampleRetweet.replace(status.getRetweetedStatus().getId(), check++);
+								if(sampleRetweet.containsKey(status.getRetweetedStatus().getId())){
+									int check = sampleRetweet.get(status.getRetweetedStatus().getId());
+									if(check<4){
+										sampleRetweet.replace(status.getRetweetedStatus().getId(), check++);
+										tweet=null;
+									}
+									else
+										tweet = extractStatusInfo(status);
+								}
 								else
-									retweeted = extractStatusInfo(status.getRetweetedStatus());
+									sampleRetweet.put(status.getRetweetedStatus().getId(), 0);
 								
 							}
+							//LESS THAN 1000 RETWEET
 							else
-								sampleRetweet.put(status.getRetweetedStatus().getId(), 0);
-								
-							}
+								tweet = extractStatusInfo(status);
 						}
-								
 						
+					}
+					//NOT RETWEET
+					else
+						tweet = extractStatusInfo(status);
+							
 					// logger.warn("Got a tweet: " + tweet.getText());
+				if(tweet!=null){
 					if (filter.filterTweet(tweet.getText())) {
 						buffer.add(tweet);
-						if(retweeted!=null){
-							tweetCounter++;
-							buffer.add(retweeted);
-						}	
 						tweetCounter++;
 						if (tweetCounter % 1000 == 0) {
 							logger.error("Twitter Streaming: Received " + tweetCounter + " tweet");
@@ -158,7 +184,11 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 							}
 						}
 					}
+				}
+					
 		//		}
+				
+				
 			}
 
 			public void onDeletionNotice(StatusDeletionNotice statusDeletionNotice) {
