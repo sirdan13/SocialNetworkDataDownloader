@@ -57,7 +57,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private DatabaseService databaseService;
 	//private List<String[]> sampleRetweet;
 	private HashMap<Long, Integer> sampleRetweet;
-	private int bufferSize = 25;
+	private int bufferSize = 200;
 	private String eventStartTime;
 
 	public TwitterStreamingProducer() {
