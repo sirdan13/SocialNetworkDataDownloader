@@ -47,6 +47,7 @@ import twitter4j.TwitterStream;
 import twitter4j.TwitterStreamFactory;
 import twitter4j.URLEntity;
 
+@SuppressWarnings("unused")
 public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 
 	private FilterQuery filterQuery;
@@ -54,9 +55,8 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private Long tweetCounter = 0L;
 	private Date stopDate;
 	private Date startDate;
+	@SuppressWarnings("unused")
 	private DatabaseService databaseService;
-	//private List<String[]> sampleRetweet;
-	private HashMap<Long, Integer> sampleRetweet;
 	private int bufferSize = 200;
 	private String eventStartTime;
 
@@ -104,7 +104,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		try {
 			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
 		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 		Connection conn;
@@ -118,7 +118,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 			while(rs.next())
 				eventStart = rs.getString(1);
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 
@@ -156,7 +156,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		try {
 			return dateFormat.parse(dateFormat.format(date));
 		} catch (ParseException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 		return null;
@@ -166,7 +166,6 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	@Override
 	public void run() {
 		TwitterStream twitterStream = new TwitterStreamFactory().getInstance();
-		sampleRetweet = new HashMap<Long, Integer>();
 		//ProducerMonitor prodMon = ProducerMonitor.getInstance();
 		//prodMon.setStreamingAttivo(true);
 		StatusListener listener = new StatusListener() {
@@ -176,22 +175,12 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 					//RETWEET
 					if(status.isRetweet()){
 						Timestamp createdAt = new Timestamp(status.getRetweetedStatus().getCreatedAt().getTime());
-					//	if(startDateConverted.before(status.getRetweetedStatus().getCreatedAt())){
 						if(eventStartTime.compareTo(createdAt.toString())<0){
 							//MORE THAN 1000 RETWEET
 							if(status.getRetweetedStatus().getRetweetCount()>=1000){
-							
-								if(sampleRetweet.containsKey(status.getRetweetedStatus().getId())){
-									int check = sampleRetweet.get(status.getRetweetedStatus().getId());
-									if(check<4){
-										sampleRetweet.replace(status.getRetweetedStatus().getId(), check++);
-										tweet=null;
-									}
-									else
-										tweet = extractStatusInfo(status);
-								}
-								else
-									sampleRetweet.put(status.getRetweetedStatus().getId(), 0);
+								//SAVES ONE OUT OF 3 RETWEETS WITH MORE THAN 1000 RETWEETS
+								if(Math.random()<0.33)
+									tweet = extractStatusInfo(status);
 								
 							}
 							//LESS THAN 1000 RETWEET
