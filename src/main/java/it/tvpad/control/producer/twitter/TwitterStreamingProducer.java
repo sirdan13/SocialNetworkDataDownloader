@@ -55,7 +55,7 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 	private Long tweetCounter = 0L;
 	private Date stopDate;
 	private Date startDate;
-	@SuppressWarnings("unused")
+	
 	private DatabaseService databaseService;
 	private int bufferSize = 200;
 	private String eventStartTime;
@@ -280,6 +280,12 @@ public class TwitterStreamingProducer extends AbstractStreamDataProducer {
 		logger.error("Twitter Streaming: STOPPING...");
 		twitterStream.shutdown();
 		logger.error("Twitter Streaming: STOP");
+		try {
+			Process proc = Runtime.getRuntime().exec("cmd /c start cmd.exe /K \" java -jar DeleteRTFinalCleaning.jar "+request.getEvent().getId());
+		} catch (IOException e) {
+			System.out.println("Launch of retweet cleaning failed.");
+			e.printStackTrace();
+		}
 	}
 
 	private Tweet extractStatusInfo(Status status) {

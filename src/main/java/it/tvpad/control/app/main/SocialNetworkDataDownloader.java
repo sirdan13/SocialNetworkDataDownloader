@@ -7,7 +7,6 @@ import it.tvpad.control.database.exception.DatabaseConnectionException;
 import it.tvpad.control.database.exception.DatabaseException;
 import it.tvpad.control.producer.AbstractRestDataProducer;
 import it.tvpad.control.producer.AbstractStreamDataProducer;
-import it.tvpad.control.producer.ProducerMonitor;
 import it.tvpad.control.producer.facebook.data.FacebookRestDataProducer;
 import it.tvpad.control.producer.facebook.server.AsyncFacebookServer;
 import it.tvpad.control.producer.facebook.server.exception.ServerException;
